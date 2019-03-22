@@ -60,6 +60,9 @@ class Piece:
     
     def upgrade(self):
         self.__upgraded = True
+
+    def is_move_allowed(self, pos1, pos2) -> bool:
+        return self.allowed_moves[(pos1 - pos2) * ((-1) ** self.owner) + 4]
     
 
     def __str__(self):
@@ -89,7 +92,7 @@ class Game:
                     
         self.__first_player = first_player
 
-        self.__turn = 0
+        self.__turn = 1
 
         self.__active_player = first_player
     
@@ -101,35 +104,49 @@ class Game:
     def turn(self):
         return self.__turn
 
+    def avialable_moves(self, pos: int) -> list:
+
+        adjacent_squares = [
+            [1, 3, 4],
+            [0, 2, 3, 4, 5],
+            [1, 4, 5],
+            [0, 1, 4, 6, 7],
+            [0, 1, 2, 3, 5, 6, 7, 8],
+            [1, 2, 4, 7, 8],
+            [3, 4, 7, 9, 10],
+            [3, 4, 5, 6, 8, 9, 10, 11],
+            [4, 5, 7, 10, 11],
+            [6, 7, 10],
+            [6, 7, 8, 9, 11],
+            [7, 8, 10]
+        ]
+        avialable = set()
+
+        if self.board[pos] is not None:
+            for potential in adjacent_squares[pos]:
+                if self.board[potential]:
+                    if self.board[potential].owner is not self.board[pos].owner:
+                        avialable.add(potential)
+                    else:
+                        continue
+                if (self.board[pos].is_move_allowed(pos, potential)):
+                    avialable.add(potential)
+
+        return list(avialable)
+
+
     def move(self, pos1: int, pos2: int) -> bool:
 
-        # if pos1, pos2 are in board
-        if not (0 <= pos1 <= 11 and 0 <= pos2 <= 11):
-            raise GameError("destination or initial location not in board")
+        # if can perform move
+        if pos2 not in self.avialable_moves(pos1):
+            raise GameError("can not perform such move")
+        
+        # if moving not own piece
+        if self.board[pos1].owner is not self.active_player:
+            raise GameError("can not move opposing player's piece")
 
-        # if moving one tile
-        if not (1 <= abs(pos1 - pos2) <= 4):
-            raise GameError("must move one tile")
-        
-        # if there is no piece in pos1
-        if self.board[pos1] is None:
-            raise GameError("no piece in initial position")
-
-        # if piece is owned by active player
-        if not (self.board[pos1].owner is self.active_player):
-            raise GameError("piece is not owned by active player")
-        
-        # if there is active player's piece in destination
-        if self.board[pos2].owner is self.active_player:
-            raise GameError("can not move onto own piece")
-        
-        # if piece can perform such move
-        if not self.board[pos1].allowed_moves[
-            (pos1 - pos2) * ((-1) ** self.board[pos1].owner) + 4]:
-            raise GameError("piece can not move in such direction")
-        
         # if there is opposing player's piece
-        if self.board[pos2].owner is not self.active_player:
+        if self.board[pos2] is not None:
             self.board[pos2].owner = self.active_player
             self.board[pos2].__upgraded = False
             self.hands[self.active_player].append(self.board[pos2])
@@ -152,4 +169,8 @@ class Game:
             raise GameError("invalid hand piece position")
         
         del self.hands[self.active_player][hand_pos]
+
+    def next_turn(self):
+        self.__turn += 1
+        self.__active_player = int(not self.__active_player)
 
