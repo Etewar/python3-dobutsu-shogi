@@ -35,5 +35,3 @@ def place(h, p):
 
 def hands():
 	return game.hands
-
-

@@ -95,6 +95,13 @@ class Game:
         self.__turn = 1
 
         self.__active_player = first_player
+
+        self.__ended = False
+    
+
+    @property
+    def ended(self):
+        return self.__ended
     
     @property
     def active_player(self):
@@ -104,7 +111,7 @@ class Game:
     def turn(self):
         return self.__turn
 
-    def avialable_moves(self, pos: int) -> list:
+    def avialable_moves(self, pos1: int) -> list:
 
         adjacent_squares = [
             [1, 3, 4],
@@ -122,20 +129,20 @@ class Game:
         ]
         avialable = set()
 
-        if self.board[pos] is not None:
-            for potential in adjacent_squares[pos]:
-                if self.board[potential]:
-                    if self.board[potential].owner is not self.board[pos].owner:
-                        avialable.add(potential)
-                    else:
-                        continue
-                if (self.board[pos].is_move_allowed(pos, potential)):
-                    avialable.add(potential)
+        if self.board[pos1] is not None:
+            for pos2 in adjacent_squares[pos1]:
+                if (self.board[pos1].is_move_allowed(pos1, pos2)):
+                    if self.board[pos2]:
+                        if self.board[pos2].owner is self.board[pos1].owner:
+                            continue
+                    avialable.add(pos2)
 
         return list(avialable)
 
 
     def move(self, pos1: int, pos2: int) -> bool:
+        if self.ended:
+            raise GameError("game is finished")
 
         # if can perform move
         if pos2 not in self.avialable_moves(pos1):
@@ -147,13 +154,26 @@ class Game:
 
         # if there is opposing player's piece
         if self.board[pos2] is not None:
+            
             self.board[pos2].owner = self.active_player
             self.board[pos2].__upgraded = False
             self.hands[self.active_player].append(self.board[pos2])
+
+            # check if game ended
+            if self.board[pos2].name == "KING":
+                self.__ended = True
+
         
+        # upgrade pawn
+        if pos2 in [0, 1, 2, 9, 10, 11] and self.board[pos1].name == "PAWN":
+            self.board[pos1].upgrade()
+
+
         self.board[pos2], self.board[pos1] = self.board[pos1], None
     
     def place(self, hand_pos: int, board_pos: int):
+        if self.ended:
+            raise GameError("game is finished")
 
         # if board_pos are in board
         if not (0 <= board_pos <= 11):
@@ -171,6 +191,18 @@ class Game:
         del self.hands[self.active_player][hand_pos]
 
     def next_turn(self):
+        for p in [0, 1, 2]:
+            if self.board[p] is not None:
+                if self.board[p].name == "KING" and self.board[p].owner == 1:
+                    self.__ended = True
+                    return
+
+        for p in [9, 10, 11]:
+            if self.board[p] is not None:
+                if self.board[p].name == "KING" and self.board[p].owner == 0:
+                    self.__ended = True
+                    return
+
         self.__turn += 1
         self.__active_player = int(not self.__active_player)
 
